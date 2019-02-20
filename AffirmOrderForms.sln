@@ -1,0 +1,40 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AffirmOrderFormsService.ViewModels", "AffirmOrderFormsService.ViewModels\AffirmOrderFormsService.ViewModels.csproj", "{9AFFDFD9-97A2-420D-8629-AC6187E088C8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AffirmOrderFormsService.ServiceLayer", "AffirmOrderFormsService.ServiceLayer\AffirmOrderFormsService.ServiceLayer.csproj", "{0761C482-BE6F-45B2-B5E4-B2D37C7FD8F9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AffirmOrderFormsService.WebApi", "AffirmOrderFormsService.WebApi\AffirmOrderFormsService.WebApi.csproj", "{CFCCB9E3-B892-475C-9119-89BCA228D432}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AffirmOrderFormsService.ServiceLayer.Tests", "AffirmOrderFormsService.ServiceLayer.Tests\AffirmOrderFormsService.ServiceLayer.Tests.csproj", "{59226D3D-1EAF-4DBF-8E3B-A358708E65A6}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9AFFDFD9-97A2-420D-8629-AC6187E088C8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9AFFDFD9-97A2-420D-8629-AC6187E088C8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9AFFDFD9-97A2-420D-8629-AC6187E088C8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9AFFDFD9-97A2-420D-8629-AC6187E088C8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0761C482-BE6F-45B2-B5E4-B2D37C7FD8F9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0761C482-BE6F-45B2-B5E4-B2D37C7FD8F9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0761C482-BE6F-45B2-B5E4-B2D37C7FD8F9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0761C482-BE6F-45B2-B5E4-B2D37C7FD8F9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CFCCB9E3-B892-475C-9119-89BCA228D432}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CFCCB9E3-B892-475C-9119-89BCA228D432}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CFCCB9E3-B892-475C-9119-89BCA228D432}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CFCCB9E3-B892-475C-9119-89BCA228D432}.Release|Any CPU.Build.0 = Release|Any CPU
+		{59226D3D-1EAF-4DBF-8E3B-A358708E65A6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{59226D3D-1EAF-4DBF-8E3B-A358708E65A6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{59226D3D-1EAF-4DBF-8E3B-A358708E65A6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{59226D3D-1EAF-4DBF-8E3B-A358708E65A6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
