@@ -42,9 +42,7 @@ namespace AffirmOrderFormsService.WebApi.Controllers
         [Route("api/renderforms")]
         //[ResponseType(typeof(HttpResponseMessage))]
         [EnableCors(origins: "*", headers: "*", methods: "*")]
-      /*  [System.Web.Http.HttpPost]
-        [System.Web.Http.Route("{OrderId}")]*/
-        public async Task<IHttpActionResult> GetProposal([FromUri] RenderFormsVm model)
+        public async Task<IHttpActionResult> RenderForms([FromUri] RenderFormsVm model)
             {
                 try
                 {

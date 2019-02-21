@@ -14,9 +14,11 @@ using ADM.Acord.TXLife.V2_10;
 using AffirmOrderFormsService.ViewModels.Requests;
 using AffirmOrderFormsService.ViewModels.Response;
 using LogManager = Ipipeline.Logging.LogManager;
-using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using NLog;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace AffirmOrderFormsService.ServiceLayer
 {
@@ -99,39 +101,38 @@ namespace AffirmOrderFormsService.ServiceLayer
             }
 
         }
-        /*
         public string GetConfigurationParameter(string key)
         {
-            return Kit.Parameters[key];
+            //return Kit.Parameters[key];
+            return "3";
         }
 
-        private async Task<HttpResponseMessage> GenericFormServiceCall(string requestPath, JToken data)
+        private async Task<HttpResponseMessage> GenericFormServiceCall(string requestPath, IAdmTrans trans, RenderFormsVm model)
         {
-             using (var client = new HttpClient())
+            using (var client = new HttpClient())
             {
-                var requestServiceUrl = _service.GetConfigurationParameter("InternalFormServiceUrl");
+
+                var transMsg = new AdmMessage()
+                {
+                    Body = trans
+                };
+                var txPayLoad = transMsg.GetBodyAsString();
+                //     data["Stage"] = _service.GetAuthenticatedStage();
+                JObject request = new JObject{ { "CallerOrgCode", model.CallerOrgCode},
+                                               { "CorrelationGUID", model.CorrelationGuid},
+                                               { "Stage", "57" },
+                                               { "TxPayload", transMsg.GetBodyAsString() },
+                                                {"NgenDataFormat", false }
+                                             };
+                JToken data = JToken.FromObject(request);
+                var requestServiceUrl = "http://localhost:53291"; //_service.GetConfigurationParameter("InternalFormServiceUrl");
                 client.BaseAddress = new Uri(requestServiceUrl);
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-                data["CallerOrgCode"] = _service.GetAuthenticatedOrgCode();
-                data["Stage"] = _service.GetAuthenticatedStage();
-
-
-                // get saved NGEN data as data into form services
-                if (requestPath.EndsWith("renderform"))
-                {
-                    data["TxPayload"] = insertedTrans;
-                    data["NgenDataFormat"] = false;
-                }
-
                 var requestContent = new StringContent(data.ToString(), Encoding.UTF8, "application/json");
-
-                requestPath = requestPath.Replace("/DistributorMaster_SSO", "");
-                requestPath = requestPath.Replace("/DistributorMaster.SSO", "");
-                requestPath = requestPath.Replace("/DistributorMaster", "");
                 return await client.PostAsync(requestPath, requestContent);
             }
-        }*/
+        }
         public async Task<RenderFormsResponse> RenderForms(RenderFormsVm request)
         {
             try
@@ -156,7 +157,7 @@ namespace AffirmOrderFormsService.ServiceLayer
                     throw new ADMServerException("Null Response from FmsCaller");
                 }
 
-                var trans = response as IAdmTrans;
+                var trans = response.GetBodyAsDataEntity() as IAdmTrans;
                 var genericResponseDictionary = response.GetBodyAsString().Split(';');
                 if (genericResponseDictionary.Length > 1)
                 {
@@ -180,6 +181,7 @@ namespace AffirmOrderFormsService.ServiceLayer
                         };
                     }
                 }
+                var k = await GenericFormServiceCall("api/forms/renderform", trans, request);
 
                 return new RenderFormsResponse()
                 {
