@@ -25,35 +25,50 @@ namespace AffirmOrderFormsService.ServiceLayer
     public class OrderFormsService : IOrderFormsService
     {
         private readonly LogManager _logManager;
-      //  private readonly ADMServerKit _kit;
+        private readonly ADMServerKit _kit;
         public OrderFormsService(LogManager logManager)
         {
             _logManager = logManager;
-         //   _kit = (ADMServerKit)kit;
+         _kit = new ADMServerKit();
            // _kit.Authenticate();
         }
 
-        public IFMSCaller GetAuthenticateCaller()
+        public ADMServerKit GetAuthenticatedKit(string callerOrgCode, string userName)
         {
-            IADMServerKit kit = new ADMServerKit();
-            string admSubscriptionGUID = "027FD556-1C1C-4D21-9ACC-74A95098FEE2";
-            string admUserGUID = "D5F86F09-6A08-4CEC-9943-B7BF730B14A6";
-            const string groupUserName = "TestBFDIST1_Agent";
+            try
+            {
+                var configName = callerOrgCode + "_PROD_OrderSvc";
+                var kit = new ADMServerKit(configName, null);
+                var authRequest = new AuthenticationRequest
+                {
+                    UserName = userName,
+                    UserType = kit.Parameters.GetString("AuthenticationMode", "") == "Custom"
+                        ? OLI_LU_USERTYPE.GROUP
+                        : OLI_LU_USERTYPE.USER
+                };
 
-            AuthenticationRequest req = new AuthenticationRequest(groupUserName, "") { UserType = 1 };
-            
+                var admSubscriptionG = kit.Parameters.GetString("SubscriptionGUID", null);
+                var admUserG = kit.Parameters.GetString("UserGUID", null);
+                //	if (kit.Authenticate(null,req) == null)
+                //		throw new ADMServerException("Kit not authenticated.");
 
-            if (kit.Authenticate(req, admSubscriptionGUID, admUserGUID) == null)
-                throw new ADMServerException("Kit not authenticated.");
+                kit.Authenticate(authRequest, admSubscriptionG, admUserG);
+                //kit.InitDefaultApplication();
 
+                kit.InitApplicationByName("IAOE");
 
-            IFMSCaller caller = kit.Instantiate<IDynamicType>(null, "FMSCaller") as IFMSCaller;
-
-            return caller;
+                return kit;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
         }
 
         public IFMSCaller GetAuthenticateCaller(string callerOrgCode, string userName)
         {
+
 
 
             try
@@ -133,6 +148,26 @@ namespace AffirmOrderFormsService.ServiceLayer
                 return await client.PostAsync(requestPath, requestContent);
             }
         }
+        private async Task<HttpResponseMessage> RenderFormsWebServiceCall(string transString,  RenderFormsVm model)
+        {
+            using (var client = new HttpClient())
+            {
+                JObject request = new JObject{ { "CallerOrgCode", model.CallerOrgCode},
+                    { "CorrelationGUID", model.CorrelationGuid},
+                    { "Stage", "57" },
+                    { "TxPayload", transString},
+                    {"NgenDataFormat", false }
+                };
+                JToken data = JToken.FromObject(request);
+                var requestServiceUrl = "https://FormService-rnd-qa.gobluefrog.com"; //_service.GetConfigurationParameter("InternalFormServiceUrl");
+                client.BaseAddress = new Uri(requestServiceUrl);
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                var requestContent = new StringContent(data.ToString(), Encoding.UTF8, "application/json");
+                return await client.PostAsync("https://FormService-rnd-qa.gobluefrog.com/api/forms/renderform", requestContent);
+            }
+        }
+
         public async Task<RenderFormsResponse> RenderForms(RenderFormsVm request)
         {
             try
@@ -157,36 +192,20 @@ namespace AffirmOrderFormsService.ServiceLayer
                     throw new ADMServerException("Null Response from FmsCaller");
                 }
 
-                var trans = response.GetBodyAsDataEntity() as IAdmTrans;
-                var genericResponseDictionary = response.GetBodyAsString().Split(';');
-                if (genericResponseDictionary.Length > 1)
-                {
+                var transString = response.GetBodyAsString();
+                //Create request for formservice
 
-                    var dictionaryResponse = genericResponseDictionary.Where(s => s != "")
-                        .ToDictionary(x => x.Split('=')[0], x => x.Split('=')[1]);
+                //Make request to formservice
 
-                    string resultCode;
-                    dictionaryResponse.TryGetValue("ResultCode", out resultCode);
-                    if (resultCode == "5")
-                    {
-                        string message;
-                        dictionaryResponse.TryGetValue("ResultInfoDesc", out message);
-                        string resultInfoCode;
-                        dictionaryResponse.TryGetValue("ResultInfoCode", out resultInfoCode);
-                        return new RenderFormsResponse()
-                        {
-                            Message = message,
-                            //@TODO This need to be update base on the response code from Event
-                            Status = (resultInfoCode == "2042") ? ResponseStatus.NotFound : ResponseStatus.BadRequest
-                        };
-                    }
-                }
-                var k = await GenericFormServiceCall("api/forms/renderform", trans, request);
+                var formServiceResponse = await RenderFormsWebServiceCall(transString, request);
+                //if status code isn't good throw exception
 
-                return new RenderFormsResponse()
-                {
-                    Response = new ProposalVm() { TxPayload = response.GetBodyAsString() }
-                };
+                var formServiceResponseString = await formServiceResponse.Content.ReadAsStringAsync();
+
+                var jObj = JObject.Parse(formServiceResponseString);
+                var admString = jObj["TxPayload"].ToString();
+
+                return null;
 
             }
             catch (Exception e)

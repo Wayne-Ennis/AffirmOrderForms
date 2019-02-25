@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using System.Web;
 using System.Web.Http;
 using System.Web.Http.Cors;
 using AffirmOrderFormsService.ServiceLayer;
@@ -42,7 +43,7 @@ namespace AffirmOrderFormsService.WebApi.Controllers
         [Route("api/renderforms")]
         //[ResponseType(typeof(HttpResponseMessage))]
         [EnableCors(origins: "*", headers: "*", methods: "*")]
-        public async Task<IHttpActionResult> RenderForms([FromUri] RenderFormsVm model)
+        public async Task<IHttpActionResult> RenderForms([FromBody] RenderFormsVm model)
             {
                 try
                 {
@@ -77,7 +78,7 @@ namespace AffirmOrderFormsService.WebApi.Controllers
                 }
                 catch (Exception e)
                 {
-
+                
                     _logManager.WriteEntry(e, 4036);
                     return InternalServerError(e);
 
