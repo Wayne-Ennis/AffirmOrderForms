@@ -16,6 +16,7 @@ using AffirmOrderFormsService.ViewModels.Response;
 using LogManager = Ipipeline.Logging.LogManager;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using ADM.MacroLanguage;
 using NLog;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -33,7 +34,7 @@ namespace AffirmOrderFormsService.ServiceLayer
            // _kit.Authenticate();
         }
 
-        public ADMServerKit GetAuthenticatedKit(string callerOrgCode, string userName)
+        public IAdmTrans GetTrans(string callerOrgCode, string userName, string orderId)
         {
             try
             {
@@ -53,11 +54,11 @@ namespace AffirmOrderFormsService.ServiceLayer
                 //		throw new ADMServerException("Kit not authenticated.");
 
                 kit.Authenticate(authRequest, admSubscriptionG, admUserG);
-                //kit.InitDefaultApplication();
+                kit.InitDefaultApplication();
 
-                kit.InitApplicationByName("IAOE");
-
-                return kit;
+                //kit.InitApplicationByName("IAOE");
+                var trans = new CompiledFormula($"AdmTrans[TransFamily='ADM' and TransIdentifier='{orderId}']").Eval<IAdmTrans>(kit.Database.Store);
+                return trans;
             }
             catch (Exception e)
             {
@@ -172,27 +173,13 @@ namespace AffirmOrderFormsService.ServiceLayer
         {
             try
             {
-
-                var caller = GetAuthenticateCaller(request.CallerOrgCode, request.UserName);
-                if (caller == null)
+                var trans = GetTrans(request.CallerOrgCode, request.UserName, request.OrderId);
+                if (trans == null)
                 {
-                   throw new FmsAuthenticationException("Unable to instantiate FMS caller");
+                    throw new ADMServerException("Couldn't find Trans");
                 }
 
-                var list = new NameValuePairList
-                {
-                    { "ApplicationName", "IAOE" },
-                    { "OrderID", request.OrderId }
-                };
-
-                var response = await Task.Run(() => caller.InvokeEventByDescription("ACORD_AnnuityOrder_Get_Standard", null, list.ToString()));
-
-                if (response == null)
-                {
-                    throw new ADMServerException("Null Response from FmsCaller");
-                }
-
-                var transString = response.GetBodyAsString();
+                var transString = trans.GetXml()?.OuterXml;
                 //Create request for formservice
 
                 //Make request to formservice

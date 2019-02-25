@@ -128,8 +128,20 @@
       <HintPath>..\packages\NLog.4.4.10\lib\net45\NLog.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="Order.BusinessObjects, Version=10.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Order.BusinessObjects.10.3.0-alpha0080\lib\net462\Order.BusinessObjects.dll</HintPath>
+    </Reference>
+    <Reference Include="Order.Scrubs, Version=10.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Order.Scrubs.10.3.0-alpha0134\lib\net462\Order.Scrubs.dll</HintPath>
+    </Reference>
     <Reference Include="OrderShared.BusinessObjects, Version=10.3.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\OrderShared.BusinessObjects.10.3.0-alpha0080\lib\net462\OrderShared.BusinessObjects.dll</HintPath>
+    </Reference>
+    <Reference Include="OrderShared.Scrubs, Version=10.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\OrderShared.Scrubs.10.3.0-alpha0080\lib\net462\OrderShared.Scrubs.dll</HintPath>
+    </Reference>
+    <Reference Include="Product.BusinessObjects, Version=10.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Product.BusinessObjects.10.3.0-alpha0108\lib\net462\Product.BusinessObjects.dll</HintPath>
     </Reference>
     <Reference Include="Product.Public, Version=10.3.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\Product.Public.10.3.0-alpha0080\lib\net462\Product.Public.dll</HintPath>
