@@ -203,6 +203,73 @@ namespace AffirmOrderFormsService.ServiceLayer
             }
         }
 
+        public async Task<SingleFormResponse> GetSingleForm(SingleFormRequest model)
+        {
+            try
+            {
+                var trans = GetTrans(model.CallerOrgCode, model.UserName, model.OrderId);
+                if (trans == null)
+                {
+                    //TODO: Log Something
+                    throw new ADMServerException("Couldn't find Trans");
+                }
+
+                var formInstance = trans.FormInstances.ToList()
+                    .FirstOrDefault(x => x.FormInstanceID == model.FormInstanceId.ToString());
+                if (formInstance == null)
+                {
+                    //TODO: Log Something
+                    throw new ADMServerException($"Couldn't find FormInstance: {model.FormInstanceId}");
+                }
+
+                await Task.Delay(200);
+                var response = new SingleFormResponse()
+                {
+                    CorrelationGuid = model.CorrelationGuid,
+                    FormInstance = new FormInstanceVm()
+                    {
+                        DocumentControlNumber = formInstance.DocumentControlNumber,
+                        FormInstanceID = formInstance.FormInstanceID,
+                        FormName = formInstance.FormName,
+                        FormOptional = formInstance.FormOptional == "100030001" ? "Required" : "Optional",
+                        //InfoSourceTC = formInstance.InfoSourceTC.ToString(),
+                        PdfBinaryString = model.IncludePdfString
+                            ? Convert.ToBase64String(formInstance.Attachments[0].AttachmentData.Data)
+                            : string.Empty,
+                        ProviderFormNumber = formInstance.ProviderFormNumber,
+                        Sequence = formInstance.Sequence.ToString(),
+                        FormSource = GetFormSource(formInstance.InfoSourceTC.ToString())
+                    }
+                };
+                return response;
+            }
+            catch (Exception e)
+            {
+                _logManager.WriteEntry($"{e.Message} | CorrelationGUID: {model.CorrelationGuid}", LogLevel.Error, 4025);
+                throw;
+            }
+        
+        }
+
+        private string GetFormSource(string infoSource)
+        {
+            string ret = string.Empty;
+            switch (infoSource)
+            {
+                case "1000300010":
+                    ret = "Distributor";
+                    break;
+                case "1000300020 ":
+                    ret = "Vendor";
+                    break;
+                case "1000300030 ":
+                    ret = "Carrier";
+                    break;
+            }
+
+            return ret;
+
+        }
 
         public IMessage GetRequestMessage(string txPayload)
         {
