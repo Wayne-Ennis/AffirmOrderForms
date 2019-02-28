@@ -10,5 +10,6 @@ namespace AffirmOrderFormsService.ViewModels.Response
     {
         public Guid CorrelationGuid { get; set; }
         public List<FormInstanceVm> FormInstances { get; set; }
+
     }
 }

@@ -27,8 +27,9 @@ namespace AffirmOrderFormsService.WebApi.Controllers
         }
 
         [HttpGet]
+        //[Route("api/orderforms/single")]
         [EnableCors(origins: "*", headers: "*", methods: "*")]
-        public async Task<IHttpActionResult> Get([FromUri] SingleFormRequest model)
+        public async Task<IHttpActionResult> Get([FromUri] SingleFormRequest model, string formInstanceId)
         {
             try
             {
@@ -47,6 +48,26 @@ namespace AffirmOrderFormsService.WebApi.Controllers
             }
         }
 
+        [HttpGet]
+        [EnableCors(origins: "*", headers: "*", methods: "*")]
+        public async Task<IHttpActionResult> Get([FromUri] FormsListRequest model)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                FormsListResponse response = await _service.GetForms(model);
+
+                return Ok(response);
+            }
+            catch (Exception e)
+            {
+                return InternalServerError(e);
+            }
+        }
 
     }
 }

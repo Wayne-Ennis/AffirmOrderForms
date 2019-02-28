@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+using System.Linq.Expressions;
 using System.Xml;
 using System.Xml.Linq;
 using ADM;
@@ -16,6 +17,7 @@ using AffirmOrderFormsService.ViewModels.Response;
 using LogManager = Ipipeline.Logging.LogManager;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Xml.Resolvers;
 using ADM.MacroLanguage;
 using NLog;
 using Newtonsoft.Json;
@@ -222,7 +224,7 @@ namespace AffirmOrderFormsService.ServiceLayer
                     throw new ADMServerException($"Couldn't find FormInstance: {model.FormInstanceId}");
                 }
 
-                await Task.Delay(200);
+                await Task.Delay(1);
                 var response = new SingleFormResponse()
                 {
                     CorrelationGuid = model.CorrelationGuid,
@@ -251,6 +253,58 @@ namespace AffirmOrderFormsService.ServiceLayer
         
         }
 
+        public async Task<FormsListResponse> GetForms(FormsListRequest model)
+        {
+            try
+            {
+                var trans = GetTrans(model.CallerOrgCode, model.UserName, model.OrderId);
+                if (trans == null)
+                {
+                    //TODO: Log Something
+                    throw new ADMServerException("Couldn't find Trans");
+                }
+
+                var formsList = trans.FormInstances.ToList();
+                await Task.Delay(1);
+                var retObj = new FormsListResponse()
+                {
+                    CorrelationGuid = model.CorrelationGuid,
+                    FormInstances =  MapFormInstances(formsList,model.IncludePdfString)
+                };
+
+                return retObj;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+        }
+
+        private List<FormInstanceVm> MapFormInstances(List<IFormInstance> formsList, bool includePdfString)
+        {
+            var returnList = new List<FormInstanceVm>();
+            foreach (var formInstance in formsList)
+            {
+                var newForm = new FormInstanceVm()
+                {
+                    DocumentControlNumber = formInstance.DocumentControlNumber,
+                    FormInstanceID = formInstance.FormInstanceID,
+                    FormName = formInstance.FormName,
+                    FormOptional = formInstance.FormOptional == "100030001" ? "Required" : "Optional",
+                    PdfBinaryString = includePdfString
+                        ? Convert.ToBase64String(formInstance.Attachments[0].AttachmentData.Data)
+                        : string.Empty,
+                    ProviderFormNumber = formInstance.ProviderFormNumber,
+                    Sequence = formInstance.Sequence.ToString(),
+                    FormSource = GetFormSource(formInstance.InfoSourceTC.ToString())
+                };
+                returnList.Add(newForm);
+            }
+
+            return returnList;
+        }
+
         private string GetFormSource(string infoSource)
         {
             string ret = string.Empty;
@@ -259,10 +313,10 @@ namespace AffirmOrderFormsService.ServiceLayer
                 case "1000300010":
                     ret = "Distributor";
                     break;
-                case "1000300020 ":
+                case "1000300020":
                     ret = "Vendor";
                     break;
-                case "1000300030 ":
+                case "1000300030":
                     ret = "Carrier";
                     break;
             }
