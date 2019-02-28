@@ -27,7 +27,6 @@ namespace AffirmOrderFormsService.WebApi.Controllers
         }
 
         [HttpGet]
-        //[Route("api/orderforms/single")]
         [EnableCors(origins: "*", headers: "*", methods: "*")]
         public async Task<IHttpActionResult> Get([FromUri] SingleFormRequest model, string formInstanceId)
         {
@@ -66,6 +65,52 @@ namespace AffirmOrderFormsService.WebApi.Controllers
             catch (Exception e)
             {
                 return InternalServerError(e);
+            }
+        }
+
+        [HttpPost]
+        [Route("api/orderforms/render")]
+        //[ResponseType(typeof(HttpResponseMessage))]
+        [EnableCors(origins: "*", headers: "*", methods: "*")]
+        public async Task<IHttpActionResult> RenderForms([FromBody] RenderFormsVm model)
+        {
+            try
+            {
+
+                if (!ModelState.IsValid || model == null)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var response = await _service.RenderForms(model);
+
+                if (response == null)
+                {
+                    return BadRequest("No Response from Service Layer");
+                }
+                //if (response.Status == ResponseStatus.BadRequest)
+                //{
+                //    return BadRequest(response.Message);
+                //}
+                //if (response.Status == ResponseStatus.NotFound)
+                //{
+                //    return Content(HttpStatusCode.NotFound, response.Message);
+                //}
+                return Ok(response);
+
+
+            }
+            catch (FmsAuthenticationException e)
+            {
+                _logManager.WriteEntry(e, 4036);
+                return Content(HttpStatusCode.Forbidden, e.Message);
+            }
+            catch (Exception e)
+            {
+
+                _logManager.WriteEntry(e, 4036);
+                return InternalServerError(e);
+
             }
         }
 

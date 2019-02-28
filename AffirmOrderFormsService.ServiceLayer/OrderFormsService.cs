@@ -3,10 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.IO;
-using System.Linq.Expressions;
-using System.Xml;
-using System.Xml.Linq;
 using ADM;
 using ADM.Admin;
 using ADM.Kit;
@@ -17,10 +13,8 @@ using AffirmOrderFormsService.ViewModels.Response;
 using LogManager = Ipipeline.Logging.LogManager;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Xml.Resolvers;
 using ADM.MacroLanguage;
 using NLog;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace AffirmOrderFormsService.ServiceLayer
@@ -35,7 +29,6 @@ namespace AffirmOrderFormsService.ServiceLayer
          _kit = new ADMServerKit();
            // _kit.Authenticate();
         }
-
         public IAdmTrans GetTrans(string callerOrgCode, string userName, string orderId)
         {
             try
@@ -66,89 +59,6 @@ namespace AffirmOrderFormsService.ServiceLayer
             {
                 Console.WriteLine(e);
                 throw;
-            }
-        }
-
-        public IFMSCaller GetAuthenticateCaller(string callerOrgCode, string userName)
-        {
-
-
-
-            try
-            {
-                var configName = callerOrgCode + "_PROD_OrderSvc";
-                var kit = new ADMServerKit(configName, null);
-                var authRequest = new AuthenticationRequest
-                {
-                    UserName = userName,
-                    UserType = kit.Parameters.GetString("AuthenticationMode", "") == "Custom"
-                        ? OLI_LU_USERTYPE.GROUP
-                        : OLI_LU_USERTYPE.USER
-                };
-
-
-                var caller = kit.Instantiate<IDynamicType>(null, "FMSCaller") as IFMSCaller;
-                var admSubscriptionG = kit.Parameters.GetString("SubscriptionGUID", null);
-                var admUserG = kit.Parameters.GetString("UserGUID", null);
-
-                if (admSubscriptionG != null && admUserG != null)
-
-                {
-                    caller?.Authenticate(null, authRequest, admSubscriptionG, admUserG);
-                }
-                else
-                {
-                    return null;
-                }
-
-                return caller;
-
-
-            }
-            catch (FileNotFoundException e)
-            {
-                _logManager.WriteEntry($"We can't find configuration for callerOrgCode: {callerOrgCode}",
-                    LogLevel.Error, 4032);
-                _logManager.WriteEntry($"{e.Message} ", LogLevel.Error, 4032);
-                throw new FmsAuthenticationException($"Configuration missing for callerOrgCode: {callerOrgCode}");
-            }
-            catch (Exception e)
-            {
-                _logManager.WriteEntry(e, 4032);
-                throw new FmsAuthenticationException();
-            }
-
-        }
-        public string GetConfigurationParameter(string key)
-        {
-            //return Kit.Parameters[key];
-            return "3";
-        }
-
-        private async Task<HttpResponseMessage> GenericFormServiceCall(string requestPath, IAdmTrans trans, RenderFormsVm model)
-        {
-            using (var client = new HttpClient())
-            {
-
-                var transMsg = new AdmMessage()
-                {
-                    Body = trans
-                };
-                var txPayLoad = transMsg.GetBodyAsString();
-                //     data["Stage"] = _service.GetAuthenticatedStage();
-                JObject request = new JObject{ { "CallerOrgCode", model.CallerOrgCode},
-                                               { "CorrelationGUID", model.CorrelationGuid},
-                                               { "Stage", "57" },
-                                               { "TxPayload", transMsg.GetBodyAsString() },
-                                                {"NgenDataFormat", false }
-                                             };
-                JToken data = JToken.FromObject(request);
-                var requestServiceUrl = "http://localhost:53291"; //_service.GetConfigurationParameter("InternalFormServiceUrl");
-                client.BaseAddress = new Uri(requestServiceUrl);
-                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-                var requestContent = new StringContent(data.ToString(), Encoding.UTF8, "application/json");
-                return await client.PostAsync(requestPath, requestContent);
             }
         }
         private async Task<HttpResponseMessage> RenderFormsWebServiceCall(string transString,  RenderFormsVm model)
@@ -199,7 +109,7 @@ namespace AffirmOrderFormsService.ServiceLayer
                 var formsTrans = formsMsg.GetBodyAsDataEntity() as IAdmTrans;
 
                 //loopthrough formInstances of forms trans. Add each Form to trans
-                formsTrans?.FormInstances.ToList().ForEach((formInstance) =>
+                formsTrans?.FormInstances.ToList().ForEach(formInstance =>
                 {
                     var fi = trans.FormInstances.AddNew("FormInstance_Attachment");
                     fi.FormName = formInstance.FormName;
@@ -208,20 +118,18 @@ namespace AffirmOrderFormsService.ServiceLayer
                     fi.DocumentControlNumber = formInstance.DocumentControlNumber;
                     fi.FormInstanceStatus = formInstance.FormInstanceStatus;
                     fi.FormOptional = formInstance.FormOptional;
-
-                    //TODO: Ngen Not Using the UserCode
-                    // fi.UserCode = formInstanceJObject["Form_Optional"]["value"].ToString();
+                    fi.UserCode = formInstance.UserCode;
                     fi.Sequence = formInstance.Sequence;
                     fi.InfoSourceTC = formInstance.InfoSourceTC;
                     fi.Attachments[0].AttachmentData.Data =
                         formInstance.Attachments[0].AttachmentData.Data;
 
                 });
-
+                
                 //Update Trans in DB
 
-                trans.Store.Update(trans);
-                trans.Store.Refresh(trans);
+                //trans.Store.Update(trans);
+                //trans.Store.Refresh(trans);
                 //Return new Appropriate response Message
                 var retObj = new FormsListResponse()
                 {
@@ -357,41 +265,6 @@ namespace AffirmOrderFormsService.ServiceLayer
 
             return ret;
 
-        }
-
-        public IMessage GetRequestMessage(string txPayload)
-        {
-            try
-            {
-                var reqMsg = new AdmMessage();
-                var txLifeDoc = new XmlDocument();
-                txLifeDoc.LoadXml(txPayload);
-                reqMsg.Body = txLifeDoc;
-                return reqMsg;
-            }
-            catch (Exception)
-            {
-                throw new Exception("Invalid payload: TxPayload passed is not a valid xml");
-            }
-        }
-        public IMessage GetRequestMessage(XDocument txPayload)
-        {
-            try
-            {
-                var reqMsg = new AdmMessage();
-                var txLifeDoc = new XmlDocument();
-                //txLifeDoc.LoadXml(txPayload);
-                using (var xmlReader = txPayload.CreateReader())
-                {
-                    txLifeDoc.Load(xmlReader);
-                }
-                reqMsg.Body = txLifeDoc;
-                return reqMsg;
-            }
-            catch (Exception)
-            {
-                throw new Exception("Invalid payload: TxPayload passed is not a valid xml");
-            }
         }
     }
 }
