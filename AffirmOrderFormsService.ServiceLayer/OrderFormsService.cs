@@ -171,11 +171,11 @@ namespace AffirmOrderFormsService.ServiceLayer
             }
         }
 
-        public async Task<RenderFormsResponse> RenderForms(RenderFormsVm request)
+        public async Task<FormsListResponse> RenderForms(RenderFormsVm model)
         {
             try
             {
-                var trans = GetTrans(request.CallerOrgCode, request.UserName, request.OrderId);
+                var trans = GetTrans(model.CallerOrgCode, model.UserName, model.OrderId);
                 if (trans == null)
                 {
                     throw new ADMServerException("Couldn't find Trans");
@@ -186,7 +186,7 @@ namespace AffirmOrderFormsService.ServiceLayer
 
                 //Make request to formservice
 
-                var formServiceResponse = await RenderFormsWebServiceCall(transString, request);
+                var formServiceResponse = await RenderFormsWebServiceCall(transString, model);
                 //if status code isn't good throw exception
 
                 var formServiceResponseString = await formServiceResponse.Content.ReadAsStringAsync();
@@ -194,12 +194,46 @@ namespace AffirmOrderFormsService.ServiceLayer
                 var jObj = JObject.Parse(formServiceResponseString);
                 var admString = jObj["TxPayload"].ToString();
 
-                return null;
+                //TODO: is this Step Necessary?
+                var formsMsg = new AdmMessage(){Body = admString};
+                var formsTrans = formsMsg.GetBodyAsDataEntity() as IAdmTrans;
+
+                //loopthrough formInstances of forms trans. Add each Form to trans
+                formsTrans?.FormInstances.ToList().ForEach((formInstance) =>
+                {
+                    var fi = trans.FormInstances.AddNew("FormInstance_Attachment");
+                    fi.FormName = formInstance.FormName;
+                    fi.ProviderFormNumber = formInstance.ProviderFormNumber;
+                    fi.FormInstanceTrackingID = formInstance.FormInstanceTrackingID;
+                    fi.DocumentControlNumber = formInstance.DocumentControlNumber;
+                    fi.FormInstanceStatus = formInstance.FormInstanceStatus;
+                    fi.FormOptional = formInstance.FormOptional;
+
+                    //TODO: Ngen Not Using the UserCode
+                    // fi.UserCode = formInstanceJObject["Form_Optional"]["value"].ToString();
+                    fi.Sequence = formInstance.Sequence;
+                    fi.InfoSourceTC = formInstance.InfoSourceTC;
+                    fi.Attachments[0].AttachmentData.Data =
+                        formInstance.Attachments[0].AttachmentData.Data;
+
+                });
+
+                //Update Trans in DB
+
+                trans.Store.Update(trans);
+                trans.Store.Refresh(trans);
+                //Return new Appropriate response Message
+                var retObj = new FormsListResponse()
+                {
+                    CorrelationGuid = model.CorrelationGuid,
+                    FormInstances = MapFormInstances(trans.FormInstances.ToList())
+                };
+                return retObj;
 
             }
             catch (Exception e)
             {
-                _logManager.WriteEntry($"{e.Message} | CorrelationGUID: {request.CorrelationGuid}", LogLevel.Error, 4025);
+                _logManager.WriteEntry($"{e.Message} | CorrelationGUID: {model.CorrelationGuid}", LogLevel.Error, 4025);
 
                 throw;
             }
@@ -281,7 +315,7 @@ namespace AffirmOrderFormsService.ServiceLayer
             }
         }
 
-        private List<FormInstanceVm> MapFormInstances(List<IFormInstance> formsList, bool includePdfString)
+        private List<FormInstanceVm> MapFormInstances(List<IFormInstance> formsList, bool includePdfString = false)
         {
             var returnList = new List<FormInstanceVm>();
             foreach (var formInstance in formsList)

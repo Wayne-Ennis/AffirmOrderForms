@@ -11,7 +11,7 @@ namespace AffirmOrderFormsService.ServiceLayer
        // Task<ProposalServiceResponse> CreateProposal(CreateOrderProposalVm model);
      //   IFMSCaller GetAuthenticateCaller();
        // IFMSCaller GetAuthenticateCaller(string callerOrgCode, string userName);
-        Task<RenderFormsResponse> RenderForms(RenderFormsVm model);
+        Task<FormsListResponse> RenderForms(RenderFormsVm model);
         Task<SingleFormResponse> GetSingleForm(SingleFormRequest model);
         Task<FormsListResponse> GetForms(FormsListRequest model);
     }

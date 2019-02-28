@@ -4,6 +4,6 @@ namespace AffirmOrderFormsService.ViewModels.Requests
 {
     public interface IBaseRequest
     {
-        Guid? CorrelationGuid { get; set; }
+        Guid CorrelationGuid { get; set; }
     }
 }

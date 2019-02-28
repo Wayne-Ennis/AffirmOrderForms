@@ -59,15 +59,15 @@ namespace AffirmOrderFormsService.WebApi.Controllers
                     {
                         return BadRequest("No Response from Service Layer");
                     }
-                    if (response.Status == ResponseStatus.BadRequest)
-                    {
-                        return BadRequest(response.Message);
-                    }
-                    if (response.Status == ResponseStatus.NotFound)
-                    {
-                        return Content(HttpStatusCode.NotFound, response.Message);
-                    }
-                    return Ok(response.Response);
+                    //if (response.Status == ResponseStatus.BadRequest)
+                    //{
+                    //    return BadRequest(response.Message);
+                    //}
+                    //if (response.Status == ResponseStatus.NotFound)
+                    //{
+                    //    return Content(HttpStatusCode.NotFound, response.Message);
+                    //}
+                    return Ok(response);
 
 
                 }
