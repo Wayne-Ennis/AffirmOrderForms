@@ -1,0 +1,192 @@
+pipeline{
+    agent {
+        node {
+            label 'master'
+            customWorkspace "E:\\workspace\\Affirm-Services\\${params.ProjectName}"
+        }
+    }    
+    environment{
+        ARTIFACTORY_URL = "${params.ArtifactoryUrl}"
+        ARTIFACTORY_CREDS = credentials('JenkUserPw')
+        NUGET_PACKAGE_LIST = "${params.Packages}"
+        STORY_ID = "${params.StoryId}"
+        PROJECT_NAME= "${params.ProjectName}"
+        SLN_PATH = "${params.SolutionPath}"
+        UPDATE_SOLUTION = "${params.UPDATE_SLN}"
+        PUSH_SIDE_BRANCH = "${params.PUSH_SIDE_BRANCH}"     
+        MERGE_CHANGES = "${params.MERGE_TO_BASE_BRANCH}"
+        BASE_BRANCH = "${params.BASE_BRANCH}"
+        SLN_FILE = "${pwd()}\\${SLN_PATH}"
+
+    }
+    stages{
+        stage('prebuild'){
+            steps{
+                    echo 'Entering the PreBuild Stage'            
+                script {
+                        echo '---------------------------------------------'
+                        echo '--------Environment Variables and Parameters'
+                        echo '---------------------------------------------'
+                        echo "Artifactory Url: ${env.ARTIFACTORY_URL}"
+                        echo "Packages List: ${env.NUGET_PACKAGE_LIST}"
+                        echo "Story Id: ${env.STORY_ID}"
+                        echo "Project Name: ${env.PROJECT_NAME}"        
+                        echo "Path to Solution File: ${env.SLN_PATH}"
+                        echo "Full Solution Path: ${env.SLN_FILE}"
+                        echo "Pushing Side Branch: ${env.PUSH_SIDE_BRANCH}"
+                        echo "Merge Changes: ${env.MERGE_CHANGES}"
+                        echo "Update Solution: ${env.UPDATE_SOLUTION}"
+                        echo "Base Branch: ${env.BASE_BRANCH}"
+                        echo '---------------------------------------------'
+                        echo '---------------------------------------------'   
+
+                        if(env.ARTIFACTORY_URL == 'null' && env.NUGET_PACKAGE_LIST == null){
+                            echo 'Throwing Exception Missing Required Params'
+                            throw new Exception("You Must Supply Either an Artifactory Url or a Package List")
+                        }
+
+                        if(env.ARTIFACTORY_URL!='null'){
+                            echo 'Artifactory Url Passed as a Parameter.'
+                            echo 'Calling Script to Get PackageList from Artifactory'
+
+                            timeout(time:2, unit: 'MINUTES'){
+                                echo 'Calling Script to Get Package List from Artifactory Url'
+                                env.NUGET_PACKAGE_LIST = powershell(returnStdout: true, script: "${pwd()}\\.devops\\powershell\\Get-NugetPackageList.ps1 -ArtifactoryUrl \"${env.ARTIFACTORY_URL}\" -ArtifactoryUser \"${env.ARTIFACTORY_CREDS_USR}\" -ArtifactoryPw \"${env.ARTIFACTORY_CREDS_PSW}\"").trim()
+                            }
+                        }
+
+                        echo "Calculating git branch"
+                        if(env.STORY_ID == null && env.PROJECT_NAME == null){
+                            throw new Exception("You Must Supply Either an StoryId or a Project Name")
+                        }
+
+
+                        env.BRANCH_NAME = env.STORY_ID != null ? "jenkins/${env.STORY_ID}-${env.BUILD_NUMBER}":"jenkins/${env.PROJECT_NAME}-${BUILD_NUMBER}"
+                        echo "BRANCH_NAME: ${env.BRANCH_NAME}"
+
+
+
+
+                        powershell(returnStatus: true, script: "git config user.email \"AffirmDevops1@ipipeline.com\" 2> \$null")
+                        powershell(returnStatus: true, script: "git config user.name \"Jenkins Build\" 2> \$null")
+
+                        //check Current Branch
+                        powershell(returnStatus: true, script: "git checkout ${env.BASE_BRANCH} 2> \$null")
+                        powershell(returnStatus: true, script: "git pull origin ${env.BASE_BRANCH} 2> \$null")
+                        env.GIT_BRANCH_NAME = powershell(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD 2>&1').trim()
+                        
+                        echo "Current Branch: ${env.GIT_BRANCH_NAME}"
+                        powershell(returnStatus: true, script: "git checkout -b ${env.BRANCH_NAME} 2> \$null")
+                        //confirm new branch
+
+                        env.GIT_NEW_BRANCH_NAME = powershell(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD 2>&1').trim()
+                        echo "New Branch: ${env.GIT_NEW_BRANCH_NAME}"
+                   
+                     }   
+
+            }
+                
+        }
+        stage('Update Solution'){
+            when{
+                environment name: 'UPDATE_SOLUTION', value: 'true'
+            }
+            steps{                    
+                    //Calling Script to Install Packages
+                    echo 'Calling Script to Install Packages'
+                    echo '-----------------------------------------'
+                    echo '------Script Parameters: ----------------'
+                    echo '-----------------------------------------'
+                    echo "${pwd()}\\.devops\\powershell\\Update-SolutionByList.ps1 -PackageList '${NUGET_PACKAGE_LIST}'  -SolutionPath '${env.SLN_FILE}'; exit \$lastexitcode"
+                    echo '-----------------------------------------'
+                    echo '-----------------------------------------'
+                    //run powershell scripts to do install
+                    powershell "${pwd()}\\.devops\\powershell\\Update-SolutionByList.ps1 -PackageList '${NUGET_PACKAGE_LIST}'  -SolutionPath ${env.SLN_FILE}; exit \$lastexitcode"
+            }
+        }       
+        stage('build Solution'){            
+            steps{
+                echo 'Calling bat command to build Solution.'                    
+
+                //trigger build to confirm we are good
+                tool name: 'V14', type: 'hudson.plugins.msbuild.MsBuildInstallation'
+                bat "\"${tool 'V14'}\"\\msbuild.exe ${env.SLN_FILE} /p:Configuration=Release"
+            }
+        }
+        stage('Preparing Commit'){
+            steps{
+                script{
+                timeout(time:2, unit: 'MINUTES'){
+                    echo "Comparing against ${env.GIT_BRANCH_NAME} to get Affected Files"
+                    env.AFFECTED_FILES = powershell(returnStdout: true, script: " ${pwd()}\\.devops\\powershell\\Get-AffectedFiles.ps1 -BranchName ${env.GIT_BRANCH_NAME} 2>&1").trim()
+                }
+
+                echo "Affected Files:"
+                echo "${env.AFFECTED_FILES}"
+                
+                echo "Formatting Git Commit Message"
+                env.GIT_COMMIT_MESSAGE = powershell(returnStdout: true, script: "${pwd()}\\.devops\\powershell\\Get-CommitMessage.ps1 -JobNumber ${BUILD_NUMBER} -BuildUrl ${BUILD_URL} -ParentJob \"${env.GIT_NEW_BRANCH_NAME}\" -AffectedFiles \"${env.AFFECTED_FILES}\" -NugetPackages \"${env.NUGET_PACKAGE_LIST}\"").trim()                               
+                }            
+            }
+        }
+        stage('Committing Changes'){
+            steps{
+                echo 'Adding Affected Files to Staging Area'                    
+                powershell(returnStatus: true, script: "git add --all 2> \$null")
+
+                echo "Committing Changes: ${GIT_COMMIT_MESSAGE}"
+                powershell(returnStatus: true, script: "git commit -m \"${env.GIT_COMMIT_MESSAGE}\" 2> \$null")
+            }
+        }
+        stage('Pushing SideBranch'){
+            when{
+                environment name: 'PUSH_SIDE_BRANCH', value: 'true'
+            }            
+            steps{
+                echo "Pushing Code Branch to Github for Future Reference"
+                powershell(returnStatus: true, script: "git push -u origin ${env.GIT_NEW_BRANCH_NAME} 2> \$null")
+            }
+        }        
+        stage('Merging Code'){
+            when{
+                environment name: 'MERGE_CHANGES', value: 'true'
+            }
+            steps{
+                    echo "Going Back to Original Branch: ${env.GIT_BRANCH_NAME}"
+                    powershell(returnStatus: true, script: "git checkout ${env.GIT_BRANCH_NAME} 2> \$null")
+
+                    echo "Merging ${env.GIT_NEW_BRANCH_NAME} into ${env.GIT_BRANCH_NAME}"
+                    powershell(returnStatus: true, script: "git merge --no-ff -m \"Merging Package Installation From Branch: ${env.GIT_NEW_BRANCH_NAME} \" ${env.GIT_NEW_BRANCH_NAME} 2> \$null")
+
+                    echo "Pushing Branch: ${env.GIT_BRANCH_NAME} with the latest merged code from: ${env.GIT_NEW_BRANCH_NAME}"
+                    powershell(returnStatus: true, script: "git push origin ${env.GIT_BRANCH_NAME} 2> \$null")                                        
+            }
+        }
+    }        
+        //Post build actions
+    post {
+        success {
+            echo "Post build Success"   
+            
+            script{
+                env.EMAIL_TEMPLATE = powershell(returnStdout: true, script: "${pwd()}\\.devops\\powershell\\Get-EmailTemplate.ps1 -BuildUrl ${BUILD_URL} -BuildStatus \"Succeeded\" -ParentJob \"${env.GIT_NEW_BRANCH_NAME}\" -FilesAffected \"${env.AFFECTED_FILES}\" -NugetPackages \"${env.NUGET_PACKAGE_LIST}\"").trim()
+            }
+            
+            emailext attachLog: true, body: env.EMAIL_TEMPLATE,  mimeType: 'text/html', recipientProviders: [[$class: 'CulpritsRecipientProvider'], [$class: 'DevelopersRecipientProvider'], [$class: 'RequesterRecipientProvider'], [$class: 'UpstreamComitterRecipientProvider']], subject: 'Contract Service Installation Build Succeeded: ${BUILD_URL}', to: 'AffirmDevops1@ipipeline.com'
+        }        
+        failure {
+            echo "Post Build Failure"
+            script{
+                env.EMAIL_TEMPLATE = powershell(returnStdout: true, script: "${pwd()}\\.devops\\powershell\\Get-EmailTemplate.ps1 -BuildUrl ${BUILD_URL} -BuildStatus \"Failed\" -ParentJob \"${env.GIT_NEW_BRANCH_NAME}\" -FilesAffected \"${env.AFFECTED_FILES}\" -NugetPackages \"${env.NUGET_PACKAGE_LIST}\"").trim()
+            }
+            emailext attachLog: true, body: env.EMAIL_TEMPLATE,  mimeType: 'text/html', recipientProviders: [[$class: 'CulpritsRecipientProvider'], [$class: 'DevelopersRecipientProvider'], [$class: 'RequesterRecipientProvider'], [$class: 'UpstreamComitterRecipientProvider']], subject: 'Contract Service Installation Build Failed: ${BUILD_URL}', to: 'AffirmDevops1@ipipeline.com'
+        }
+        always{
+            //clean up mess
+            //checkout master
+            echo "Post build Always"                
+        }
+    }
+
+}
+
