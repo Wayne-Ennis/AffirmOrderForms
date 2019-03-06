@@ -31,33 +31,38 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="ADM, Version=9.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\ADM.9.1.0.0\lib\net462\ADM.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="ADM, Version=10.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\ADM.10.3.0-alpha0011\lib\net462\ADM.dll</HintPath>
     </Reference>
-    <Reference Include="ADM.Acord, Version=10.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\ADM.Acord.10.0.0.0\lib\net462\ADM.Acord.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="ADM.Acord, Version=10.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\ADM.Acord.10.3.0-alpha0080\lib\net462\ADM.Acord.dll</HintPath>
     </Reference>
-    <Reference Include="ADM.Acord.TXLife, Version=10.0.0.18455, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\ADM.Acord.TXLife.10.0.0.18455\lib\net462\ADM.Acord.TXLife.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="ADM.Acord.TXLife, Version=10.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\ADM.Acord.TXLife.10.3.0-alpha0193\lib\net462\ADM.Acord.TXLife.dll</HintPath>
     </Reference>
-    <Reference Include="ADM.Acord.TXLife.Imp2, Version=10.0.0.18458, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\ADM.Acord.TXLife.Imp2.10.0.0.18458\lib\net462\ADM.Acord.TXLife.Imp2.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="ADM.Acord.TXLife.Imp2, Version=10.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\ADM.Acord.TXLife.Imp2.10.3.0-alpha0080\lib\net462\ADM.Acord.TXLife.Imp2.dll</HintPath>
     </Reference>
-    <Reference Include="ADM.FMS, Version=9.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\ADM.FMS.9.1.0.0\lib\net462\ADM.FMS.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="ADM.FMS, Version=10.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\ADM.FMS.10.3.0-alpha0004\lib\net462\ADM.FMS.dll</HintPath>
     </Reference>
-    <Reference Include="FMSRemotingClient, Version=9.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\FMSRemotingClient.9.1.0.0\lib\net451\FMSRemotingClient.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="FMSRemotingClient, Version=10.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\FMSRemotingClient.10.3.0-alpha0004\lib\net462\FMSRemotingClient.dll</HintPath>
     </Reference>
-    <Reference Include="Ipipeline.Logging, Version=9.0.6410.17862, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Ipipeline.Logging.9.1.0.0\lib\net462\Ipipeline.Logging.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="Form.AnnuityDelegate, Version=10.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Form.AnnuityDelegate.10.3.0-alpha0080\lib\net462\Form.AnnuityDelegate.dll</HintPath>
+    </Reference>
+    <Reference Include="Form.BusinessObjects, Version=10.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Form.BusinessObjects.10.3.0-alpha0080\lib\net462\Form.BusinessObjects.dll</HintPath>
+    </Reference>
+    <Reference Include="Form.Public, Version=10.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Form.Public.10.3.0-alpha0080\lib\net462\Form.Public.dll</HintPath>
+    </Reference>
+    <Reference Include="Ipipeline.Logging, Version=10.2.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Ipipeline.Logging.10.2.0-beta0002\lib\net462\Ipipeline.Logging.dll</HintPath>
+    </Reference>
+    <Reference Include="MasterConfig.Public, Version=10.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\MasterConfig.Public.10.3.0-alpha0080\lib\net462\MasterConfig.Public.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=12.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.12.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
@@ -66,6 +71,24 @@
     <Reference Include="NLog, Version=4.0.0.0, Culture=neutral, PublicKeyToken=5120e14c03d0593c, processorArchitecture=MSIL">
       <HintPath>..\packages\NLog.4.4.10\lib\net45\NLog.dll</HintPath>
       <Private>True</Private>
+    </Reference>
+    <Reference Include="Order.BusinessObjects, Version=10.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Order.BusinessObjects.10.3.0-alpha0080\lib\net462\Order.BusinessObjects.dll</HintPath>
+    </Reference>
+    <Reference Include="Order.Scrubs, Version=10.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Order.Scrubs.10.3.0-alpha0134\lib\net462\Order.Scrubs.dll</HintPath>
+    </Reference>
+    <Reference Include="OrderShared.BusinessObjects, Version=10.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\OrderShared.BusinessObjects.10.3.0-alpha0080\lib\net462\OrderShared.BusinessObjects.dll</HintPath>
+    </Reference>
+    <Reference Include="OrderShared.Scrubs, Version=10.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\OrderShared.Scrubs.10.3.0-alpha0080\lib\net462\OrderShared.Scrubs.dll</HintPath>
+    </Reference>
+    <Reference Include="Product.BusinessObjects, Version=10.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Product.BusinessObjects.10.3.0-alpha0108\lib\net462\Product.BusinessObjects.dll</HintPath>
+    </Reference>
+    <Reference Include="Product.Public, Version=10.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Product.Public.10.3.0-alpha0080\lib\net462\Product.Public.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -95,6 +118,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <None Include="app.config" />
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

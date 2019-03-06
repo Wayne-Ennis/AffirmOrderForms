@@ -1,0 +1,2 @@
+2019-02-22 09:05:42.9122|ERROR||Dynamic Type Order_BusinessRules could not be initialized | CorrelationGUID: 4cd0292b-78cd-44e1-b3d1-6a4c9abf5ea7
+2019-02-22 09:05:42.9752|ERROR||Dynamic Type Order_BusinessRules could not be initialized, EventID=4036

@@ -3,9 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.IO;
-using System.Xml;
-using System.Xml.Linq;
 using ADM;
 using ADM.Admin;
 using ADM.Kit;
@@ -16,8 +13,8 @@ using AffirmOrderFormsService.ViewModels.Response;
 using LogManager = Ipipeline.Logging.LogManager;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using ADM.MacroLanguage;
 using NLog;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace AffirmOrderFormsService.ServiceLayer
@@ -25,37 +22,15 @@ namespace AffirmOrderFormsService.ServiceLayer
     public class OrderFormsService : IOrderFormsService
     {
         private readonly LogManager _logManager;
-      //  private readonly ADMServerKit _kit;
+        private readonly ADMServerKit _kit;
         public OrderFormsService(LogManager logManager)
         {
             _logManager = logManager;
-         //   _kit = (ADMServerKit)kit;
+         _kit = new ADMServerKit();
            // _kit.Authenticate();
         }
-
-        public IFMSCaller GetAuthenticateCaller()
+        public IAdmTrans GetTrans(string callerOrgCode, string userName, string orderId)
         {
-            IADMServerKit kit = new ADMServerKit();
-            string admSubscriptionGUID = "027FD556-1C1C-4D21-9ACC-74A95098FEE2";
-            string admUserGUID = "D5F86F09-6A08-4CEC-9943-B7BF730B14A6";
-            const string groupUserName = "TestBFDIST1_Agent";
-
-            AuthenticationRequest req = new AuthenticationRequest(groupUserName, "") { UserType = 1 };
-            
-
-            if (kit.Authenticate(req, admSubscriptionGUID, admUserGUID) == null)
-                throw new ADMServerException("Kit not authenticated.");
-
-
-            IFMSCaller caller = kit.Instantiate<IDynamicType>(null, "FMSCaller") as IFMSCaller;
-
-            return caller;
-        }
-
-        public IFMSCaller GetAuthenticateCaller(string callerOrgCode, string userName)
-        {
-
-
             try
             {
                 var configName = callerOrgCode + "_PROD_OrderSvc";
@@ -68,169 +43,228 @@ namespace AffirmOrderFormsService.ServiceLayer
                         : OLI_LU_USERTYPE.USER
                 };
 
-
-                var caller = kit.Instantiate<IDynamicType>(null, "FMSCaller") as IFMSCaller;
                 var admSubscriptionG = kit.Parameters.GetString("SubscriptionGUID", null);
                 var admUserG = kit.Parameters.GetString("UserGUID", null);
+                //	if (kit.Authenticate(null,req) == null)
+                //		throw new ADMServerException("Kit not authenticated.");
 
-                if (admSubscriptionG != null && admUserG != null)
+                kit.Authenticate(authRequest, admSubscriptionG, admUserG);
+                kit.InitDefaultApplication();
 
-                {
-                    caller?.Authenticate(null, authRequest, admSubscriptionG, admUserG);
-                }
-                else
-                {
-                    return null;
-                }
-
-                return caller;
-
-
-            }
-            catch (FileNotFoundException e)
-            {
-                _logManager.WriteEntry($"We can't find configuration for callerOrgCode: {callerOrgCode}",
-                    LogLevel.Error, 4032);
-                _logManager.WriteEntry($"{e.Message} ", LogLevel.Error, 4032);
-                throw new FmsAuthenticationException($"Configuration missing for callerOrgCode: {callerOrgCode}");
+                //kit.InitApplicationByName("IAOE");
+                var trans = new CompiledFormula($"AdmTrans[TransFamily='ADM' and TransIdentifier='{orderId}']").Eval<IAdmTrans>(kit.Database.Store);
+                return trans;
             }
             catch (Exception e)
             {
-                _logManager.WriteEntry(e, 4032);
-                throw new FmsAuthenticationException();
+                Console.WriteLine(e);
+                throw;
             }
-
         }
-        public string GetConfigurationParameter(string key)
-        {
-            //return Kit.Parameters[key];
-            return "3";
-        }
-
-        private async Task<HttpResponseMessage> GenericFormServiceCall(string requestPath, IAdmTrans trans, RenderFormsVm model)
+        private async Task<HttpResponseMessage> RenderFormsWebServiceCall(string transString,  RenderFormsVm model)
         {
             using (var client = new HttpClient())
             {
-
-                var transMsg = new AdmMessage()
-                {
-                    Body = trans
-                };
-                var txPayLoad = transMsg.GetBodyAsString();
-                //     data["Stage"] = _service.GetAuthenticatedStage();
                 JObject request = new JObject{ { "CallerOrgCode", model.CallerOrgCode},
-                                               { "CorrelationGUID", model.CorrelationGuid},
-                                               { "Stage", "57" },
-                                               { "TxPayload", transMsg.GetBodyAsString() },
-                                                {"NgenDataFormat", false }
-                                             };
+                    { "CorrelationGUID", model.CorrelationGuid},
+                    { "Stage", "57" },
+                    { "TxPayload", transString},
+                    {"NgenDataFormat", false }
+                };
                 JToken data = JToken.FromObject(request);
-                var requestServiceUrl = "http://localhost:53291"; //_service.GetConfigurationParameter("InternalFormServiceUrl");
+                var requestServiceUrl = "https://FormService-rnd-qa.gobluefrog.com"; //_service.GetConfigurationParameter("InternalFormServiceUrl");
                 client.BaseAddress = new Uri(requestServiceUrl);
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
                 var requestContent = new StringContent(data.ToString(), Encoding.UTF8, "application/json");
-                return await client.PostAsync(requestPath, requestContent);
+                return await client.PostAsync("https://FormService-rnd-qa.gobluefrog.com/api/forms/renderform", requestContent);
             }
         }
-        public async Task<RenderFormsResponse> RenderForms(RenderFormsVm request)
+
+        public async Task<FormsListResponse> RenderForms(RenderFormsVm model)
         {
             try
             {
-
-                var caller = GetAuthenticateCaller(request.CallerOrgCode, request.UserName);
-                if (caller == null)
+                var trans = GetTrans(model.CallerOrgCode, model.UserName, model.OrderId);
+                if (trans == null)
                 {
-                   throw new FmsAuthenticationException("Unable to instantiate FMS caller");
+                    throw new ADMServerException("Couldn't find Trans");
                 }
 
-                var list = new NameValuePairList
+                var transString = trans.GetXml()?.OuterXml;
+                //Create request for formservice
+
+                //Make request to formservice
+
+                var formServiceResponse = await RenderFormsWebServiceCall(transString, model);
+                //if status code isn't good throw exception
+
+                var formServiceResponseString = await formServiceResponse.Content.ReadAsStringAsync();
+
+                var jObj = JObject.Parse(formServiceResponseString);
+                var admString = jObj["TxPayload"].ToString();
+
+                //TODO: is this Step Necessary?
+                var formsMsg = new AdmMessage(){Body = admString};
+                var formsTrans = formsMsg.GetBodyAsDataEntity() as IAdmTrans;
+
+                //loopthrough formInstances of forms trans. Add each Form to trans
+                formsTrans?.FormInstances.ToList().ForEach(formInstance =>
                 {
-                    { "ApplicationName", "IAOE" },
-                    { "OrderID", request.OrderId }
+                    var fi = trans.FormInstances.AddNew("FormInstance_Attachment");
+                    fi.FormName = formInstance.FormName;
+                    fi.ProviderFormNumber = formInstance.ProviderFormNumber;
+                    fi.FormInstanceTrackingID = formInstance.FormInstanceTrackingID;
+                    fi.DocumentControlNumber = formInstance.DocumentControlNumber;
+                    fi.FormInstanceStatus = formInstance.FormInstanceStatus;
+                    fi.FormOptional = formInstance.FormOptional;
+                    fi.UserCode = formInstance.UserCode;
+                    fi.Sequence = formInstance.Sequence;
+                    fi.InfoSourceTC = formInstance.InfoSourceTC;
+                    fi.Attachments[0].AttachmentData.Data =
+                        formInstance.Attachments[0].AttachmentData.Data;
+
+                });
+                
+                //Update Trans in DB
+
+                //trans.Store.Update(trans);
+                //trans.Store.Refresh(trans);
+                //Return new Appropriate response Message
+                var retObj = new FormsListResponse()
+                {
+                    CorrelationGuid = model.CorrelationGuid,
+                    FormInstances = MapFormInstances(trans.FormInstances.ToList())
                 };
-
-                var response = await Task.Run(() => caller.InvokeEventByDescription("ACORD_AnnuityOrder_Get_Standard", null, list.ToString()));
-
-                if (response == null)
-                {
-                    throw new ADMServerException("Null Response from FmsCaller");
-                }
-
-                var trans = response.GetBodyAsDataEntity() as IAdmTrans;
-                var genericResponseDictionary = response.GetBodyAsString().Split(';');
-                if (genericResponseDictionary.Length > 1)
-                {
-
-                    var dictionaryResponse = genericResponseDictionary.Where(s => s != "")
-                        .ToDictionary(x => x.Split('=')[0], x => x.Split('=')[1]);
-
-                    string resultCode;
-                    dictionaryResponse.TryGetValue("ResultCode", out resultCode);
-                    if (resultCode == "5")
-                    {
-                        string message;
-                        dictionaryResponse.TryGetValue("ResultInfoDesc", out message);
-                        string resultInfoCode;
-                        dictionaryResponse.TryGetValue("ResultInfoCode", out resultInfoCode);
-                        return new RenderFormsResponse()
-                        {
-                            Message = message,
-                            //@TODO This need to be update base on the response code from Event
-                            Status = (resultInfoCode == "2042") ? ResponseStatus.NotFound : ResponseStatus.BadRequest
-                        };
-                    }
-                }
-                var k = await GenericFormServiceCall("api/forms/renderform", trans, request);
-
-                return new RenderFormsResponse()
-                {
-                    Response = new ProposalVm() { TxPayload = response.GetBodyAsString() }
-                };
+                return retObj;
 
             }
             catch (Exception e)
             {
-                _logManager.WriteEntry($"{e.Message} | CorrelationGUID: {request.CorrelationGuid}", LogLevel.Error, 4025);
+                _logManager.WriteEntry($"{e.Message} | CorrelationGUID: {model.CorrelationGuid}", LogLevel.Error, 4025);
 
                 throw;
             }
         }
 
-
-        public IMessage GetRequestMessage(string txPayload)
+        public async Task<SingleFormResponse> GetSingleForm(SingleFormRequest model)
         {
             try
             {
-                var reqMsg = new AdmMessage();
-                var txLifeDoc = new XmlDocument();
-                txLifeDoc.LoadXml(txPayload);
-                reqMsg.Body = txLifeDoc;
-                return reqMsg;
+                var trans = GetTrans(model.CallerOrgCode, model.UserName, model.OrderId);
+                if (trans == null)
+                {
+                    //TODO: Log Something
+                    throw new ADMServerException("Couldn't find Trans");
+                }
+
+                var formInstance = trans.FormInstances.ToList()
+                    .FirstOrDefault(x => x.FormInstanceID == model.FormInstanceId.ToString());
+                if (formInstance == null)
+                {
+                    //TODO: Log Something
+                    throw new ADMServerException($"Couldn't find FormInstance: {model.FormInstanceId}");
+                }
+
+                await Task.Delay(1);
+                var response = new SingleFormResponse()
+                {
+                    CorrelationGuid = model.CorrelationGuid,
+                    FormInstance = new FormInstanceVm()
+                    {
+                        DocumentControlNumber = formInstance.DocumentControlNumber,
+                        FormInstanceID = formInstance.FormInstanceID,
+                        FormName = formInstance.FormName,
+                        FormOptional = formInstance.FormOptional == "100030001" ? "Required" : "Optional",
+                        //InfoSourceTC = formInstance.InfoSourceTC.ToString(),
+                        PdfBinaryString = model.IncludePdfString
+                            ? Convert.ToBase64String(formInstance.Attachments[0].AttachmentData.Data)
+                            : string.Empty,
+                        ProviderFormNumber = formInstance.ProviderFormNumber,
+                        Sequence = formInstance.Sequence.ToString(),
+                        FormSource = GetFormSource(formInstance.InfoSourceTC.ToString())
+                    }
+                };
+                return response;
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                throw new Exception("Invalid payload: TxPayload passed is not a valid xml");
+                _logManager.WriteEntry($"{e.Message} | CorrelationGUID: {model.CorrelationGuid}", LogLevel.Error, 4025);
+                throw;
+            }
+        
+        }
+
+        public async Task<FormsListResponse> GetForms(FormsListRequest model)
+        {
+            try
+            {
+                var trans = GetTrans(model.CallerOrgCode, model.UserName, model.OrderId);
+                if (trans == null)
+                {
+                    //TODO: Log Something
+                    throw new ADMServerException("Couldn't find Trans");
+                }
+
+                var formsList = trans.FormInstances.ToList();
+                await Task.Delay(1);
+                var retObj = new FormsListResponse()
+                {
+                    CorrelationGuid = model.CorrelationGuid,
+                    FormInstances =  MapFormInstances(formsList,model.IncludePdfString)
+                };
+
+                return retObj;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
             }
         }
-        public IMessage GetRequestMessage(XDocument txPayload)
+
+        private List<FormInstanceVm> MapFormInstances(List<IFormInstance> formsList, bool includePdfString = false)
         {
-            try
+            var returnList = new List<FormInstanceVm>();
+            foreach (var formInstance in formsList)
             {
-                var reqMsg = new AdmMessage();
-                var txLifeDoc = new XmlDocument();
-                //txLifeDoc.LoadXml(txPayload);
-                using (var xmlReader = txPayload.CreateReader())
+                var newForm = new FormInstanceVm()
                 {
-                    txLifeDoc.Load(xmlReader);
-                }
-                reqMsg.Body = txLifeDoc;
-                return reqMsg;
+                    DocumentControlNumber = formInstance.DocumentControlNumber,
+                    FormInstanceID = formInstance.FormInstanceID,
+                    FormName = formInstance.FormName,
+                    FormOptional = formInstance.FormOptional == "100030001" ? "Required" : "Optional",
+                    PdfBinaryString = includePdfString
+                        ? Convert.ToBase64String(formInstance.Attachments[0].AttachmentData.Data)
+                        : string.Empty,
+                    ProviderFormNumber = formInstance.ProviderFormNumber,
+                    Sequence = formInstance.Sequence.ToString(),
+                    FormSource = GetFormSource(formInstance.InfoSourceTC.ToString())
+                };
+                returnList.Add(newForm);
             }
-            catch (Exception)
+
+            return returnList;
+        }
+
+        private string GetFormSource(string infoSource)
+        {
+            string ret = string.Empty;
+            switch (infoSource)
             {
-                throw new Exception("Invalid payload: TxPayload passed is not a valid xml");
+                case "1000300010":
+                    ret = "Distributor";
+                    break;
+                case "1000300020":
+                    ret = "Vendor";
+                    break;
+                case "1000300030":
+                    ret = "Carrier";
+                    break;
             }
+
+            return ret;
+
         }
     }
 }

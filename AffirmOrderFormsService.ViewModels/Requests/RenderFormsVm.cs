@@ -13,7 +13,7 @@ namespace AffirmOrderFormsService.ViewModels.Requests
         public string CallerOrgCode { get; set; }
 
      //  [Required(ErrorMessage = "{0} is a Required Parameter")]
-        public Guid? CorrelationGuid { get; set; }
+        public Guid CorrelationGuid { get; set; }
 
       // [Required(ErrorMessage = "{0} is a Required Parameter")]
         public string OrderId { get; set; }
